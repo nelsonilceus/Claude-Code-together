@@ -1188,9 +1188,8 @@ fieldset[aria-invalid="true"] .choice span { border-color: var(--danger); }
         </header>
 
         <!-- FORM ENDPOINT: configured in config.js → partnerEndpoint (see README "Forms") -->
-        <form class="card-form" id="partner-form" name="partner-application" method="POST" data-form="partner" data-netlify="true" netlify-honeypot="company_fax" novalidate>
+        <form class="card-form" id="partner-form" name="partner-application" method="POST" data-form="partner" data-netlify="true" novalidate>
           <input type="hidden" name="form-name" value="partner-application" />
-          <p class="hp" aria-hidden="true"><label>Leave blank <input name="company_fax" tabindex="-1" autocomplete="off" /></label></p>
 
           <div class="field-grid">
             <div class="field">
@@ -1283,9 +1282,8 @@ fieldset[aria-invalid="true"] .choice span { border-color: var(--danger); }
         </div>
 
         <!-- FORM ENDPOINT: configured in config.js → earlyAccessEndpoint (see README "Forms") -->
-        <form class="card-form card-form-compact" id="early-form" name="early-access" method="POST" data-form="early" data-netlify="true" netlify-honeypot="company_fax" novalidate>
+        <form class="card-form card-form-compact" id="early-form" name="early-access" method="POST" data-form="early" data-netlify="true" novalidate>
           <input type="hidden" name="form-name" value="early-access" />
-          <p class="hp" aria-hidden="true"><label>Leave blank <input name="company_fax" tabindex="-1" autocomplete="off" /></label></p>
 
           <div class="field">
             <label for="e-first">First name</label>
@@ -1708,9 +1706,6 @@ window.NOVA_CONFIG = {
 
       var data = collect(form);
 
-      // Honeypot: bots fill hidden fields. Pretend success, send nothing.
-      var trap = $("input[name='company_fax']", form);
-      if (trap && trap.value) { success(form, data, false); return; }
 
       button.disabled = true;
       button.textContent = "Sending…";
