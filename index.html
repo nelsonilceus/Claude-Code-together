@@ -1377,7 +1377,7 @@ fieldset[aria-invalid="true"] .choice span { border-color: var(--danger); }
           <a href="#dentists">For Dentists</a>
           <a href="#faq">FAQ</a>
           <!-- CONTACT: replace with your real inbox -->
-          <a href="mailto:hello@YOUR-DOMAIN.com">Contact</a>
+          <a href="mailto:nelson@nova-dental.net">Contact</a>
           <a href="privacy.html">Privacy</a>
           <a href="terms.html">Terms</a>
         </nav>
@@ -1408,8 +1408,8 @@ window.NOVA_CONFIG = {
      show the success screen, but nothing is sent, and a yellow
      "preview mode" note appears so you can't miss it.
      ------------------------------------------------------- */
-  earlyAccessEndpoint: "",
-  partnerEndpoint: "",
+  earlyAccessEndpoint: "https://script.google.com/macros/s/AKfycbxS_Dz0ykSlaKGyARfMONQIBsS26Pcnjx5nt_tNdUbqB_QwePFbvv47-EjC6y70-hCx4g/exec",
+  partnerEndpoint: "https://script.google.com/macros/s/AKfycbxS_Dz0ykSlaKGyARfMONQIBsS26Pcnjx5nt_tNdUbqB_QwePFbvv47-EjC6y70-hCx4g/exec",
 
   /* -------------------------------------------------------
      Option C — Netlify Forms (Netlify hosting only)
@@ -1420,7 +1420,7 @@ window.NOVA_CONFIG = {
   useNetlifyForms: false,
 
   /* Shown in the error message if a submission fails. */
-  contactEmail: "hello@YOUR-DOMAIN.com"
+  contactEmail: "nelson@nova-dental.net"
 };
 
 </script>
@@ -1602,6 +1602,8 @@ window.NOVA_CONFIG = {
     });
     if (form.dataset.form === "early") data.launch_updates = form.launch_updates.checked ? "yes" : "no";
     data.form = form.dataset.form === "partner" ? "partner-application" : "early-access";
+    if (!form.dataset.submissionId) form.dataset.submissionId = crypto.randomUUID();
+    data.submission_id = form.dataset.submissionId;
     data.submitted_at = new Date().toISOString();
     data.page = window.location.href;
     var params = new URLSearchParams(window.location.search);
@@ -1612,35 +1614,24 @@ window.NOVA_CONFIG = {
   }
 
   function send(form, data) {
-    var kind = form.dataset.form;
-    var endpoint = kind === "partner" ? CONFIG.partnerEndpoint : CONFIG.earlyAccessEndpoint;
-
-    if (CONFIG.useNetlifyForms) {
-      var body = new URLSearchParams(new FormData(form)).toString();
-      return fetch("/", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: body
-      }).then(function (r) { if (!r.ok) throw new Error("Netlify " + r.status); return { preview: false }; });
-    }
-
-    if (endpoint) {
-      return fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify(data)
-      }).then(function (r) { if (!r.ok) throw new Error("Endpoint " + r.status); return { preview: false }; });
-    }
-
-    // PREVIEW MODE: nothing is sent. Saved locally so you can inspect it in DevTools.
-    try {
-      var key = "nova_preview_" + kind;
-      var list = JSON.parse(localStorage.getItem(key) || "[]");
-      list.push(data);
-      localStorage.setItem(key, JSON.stringify(list));
-    } catch (e) { /* storage may be blocked */ }
-    if (window.console) console.info("[NOVA preview mode] " + kind + " submission (not sent):", data);
-    return new Promise(function (resolve) { setTimeout(function () { resolve({ preview: true }); }, 500); });
+    var endpoint = form.dataset.form === "partner" ? CONFIG.partnerEndpoint : CONFIG.earlyAccessEndpoint;
+    if (!endpoint) return Promise.reject(new Error("Form delivery is not configured"));
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 25000);
+    return fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+      redirect: "follow",
+      credentials: "omit"
+    }).then(function (r) {
+      if (!r.ok) throw new Error("Submission failed");
+      return r.json();
+    }).then(function (result) {
+      if (result.ok !== true || result.submission_id !== data.submission_id) throw new Error("Save not confirmed");
+      return { preview: false };
+    }).finally(function () { clearTimeout(timeout); });
   }
 
   function escapeHTML(s) {
@@ -1695,6 +1686,7 @@ window.NOVA_CONFIG = {
 
     // Live re-validation after the first submit attempt
     function revalidate(e) {
+      delete form.dataset.submissionId;
       if (!attempted) return;
       var el = e.target;
       if (!el.name || el.type === "checkbox" || el.closest(".hp")) return;
